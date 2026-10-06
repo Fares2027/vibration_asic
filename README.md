@@ -1,270 +1,199 @@
-
-```markdown
 # Vibration Anomaly Detection ASIC
 
-A hardware-based vibration anomaly detection system designed for implementation as an ASIC and validation on FPGA.
+Hardware-based vibration anomaly detection system implemented in Verilog for ASIC development and FPGA validation.
 
-The system learns the normal vibration behavior of a machine using accelerometer data, extracts multiple vibration features in hardware, and raises an alert when the observed vibration significantly deviates from the learned baseline.
+The system reads vibration data from a digital accelerometer, extracts several vibration features directly in hardware, learns the normal operating behavior of a machine, and raises an alert when the vibration pattern significantly deviates from the learned baseline.
 
-The project is implemented in Verilog and currently targets:
+The project is currently developed for:
 
-- ASIC implementation using the Sky130 PDK and LibreLane
+- ASIC implementation using Sky130 and LibreLane
 - FPGA validation using the Tang Nano 20K
-- LIS3DH digital accelerometer through SPI
+- LIS3DH accelerometer through SPI
 
----
 
-## Concept
+PROJECT CONCEPT
 
-The basic operating principle is:
-
-```text
 Accelerometer
-     ↓
+    ↓
 SPI Interface
-     ↓
+    ↓
 Signal Conditioning
-     ↓
+    ↓
 Feature Extraction
-     ↓
+    ↓
 Online Learning
-     ↓
-Anomaly Scoring
-     ↓
+    ↓
+Anomaly Detection
+    ↓
 Persistence Check
-     ↓
+    ↓
 Alert
-```
 
 During the learning phase, the circuit observes normal machine vibration and builds a statistical baseline.
 
-After learning is complete, incoming vibration windows are compared against this baseline. If the deviation is sufficiently large and persists for multiple observations, the system generates an anomaly alert.
+After the learning phase, each new vibration window is compared against the stored baseline.
 
-A simple demonstration scenario is:
+If the difference becomes large enough and persists for multiple observations, the system generates an anomaly alert.
 
-```text
+
+EXAMPLE DEMONSTRATION
+
 Normal fan operation
-        ↓
-Learn normal vibration
-        ↓
-Introduce mechanical imbalance
-        ↓
+    ↓
+System learns normal vibration
+    ↓
+Mechanical imbalance is introduced
+    ↓
 Vibration characteristics change
-        ↓
-Anomaly detected
-        ↓
-Alert triggered
-```
+    ↓
+Anomaly is detected
+    ↓
+Alert is triggered
 
----
 
-## Architecture
+MAIN RTL MODULES
 
-The design contains the following main RTL modules.
-
-### Sensor Interface
-
-`spi_master.v`
-
+spi_master.v
 Generic SPI communication engine.
 
-`lis3dh_controller.v`
+lis3dh_controller.v
+Initializes the LIS3DH accelerometer, verifies the sensor identity, and reads X, Y, and Z acceleration data.
 
-Controls the LIS3DH accelerometer, performs initialization, verifies the sensor identity, and reads X/Y/Z acceleration samples.
-
----
-
-### Sampling and Signal Processing
-
-`sample_tick.v`
-
+sample_tick.v
 Generates the accelerometer sampling timing.
 
-`dc_filter.v`
+dc_filter.v
+Removes the DC component from acceleration signals.
 
-Removes the DC component from the acceleration signal.
+window_engine.v
+Controls vibration processing windows.
 
-`window_engine.v`
+peak_detector.v
+Extracts peak vibration amplitude.
 
-Divides the signal into processing windows.
+zcr_detector.v
+Calculates zero-crossing rate.
 
----
-
-### Feature Extraction
-
-The design extracts several vibration characteristics.
-
-`peak_detector.v`
-
-Measures peak vibration amplitude.
-
-`zcr_detector.v`
-
-Calculates the zero-crossing rate.
-
-`rms_energy.v`
-
+rms_energy.v
 Calculates vibration energy.
 
-`goertzel_shared.v`
+goertzel_shared.v
+Shared Goertzel processing architecture for monitoring selected vibration frequency components.
 
-Implements a shared Goertzel processing engine for monitoring selected vibration frequency components.
-
-The shared implementation reduces arithmetic hardware compared with using multiple independent Goertzel engines.
-
----
-
-### Feature Processing
-
-`feature_scaler.v`
-
+feature_scaler.v
 Scales extracted vibration features before statistical processing.
 
----
+running_stats.v
+Maintains running statistical values for individual features.
 
-### Online Learning
-
-`running_stats.v`
-
-Maintains the running statistical baseline for a feature.
-
-`learning_bank.v`
-
+learning_bank.v
 Maintains the learned baseline for all monitored vibration features.
 
-The system learns normal behavior directly from the machine instead of requiring a pre-trained machine-learning model.
+anomaly_score.v
+Compares current vibration features against the learned baseline.
 
----
+alert_persistence.v
+Requires anomaly conditions to persist before generating the final alert.
 
-### Anomaly Detection
+vibration_asic_top.v
+Top-level module integrating the complete system.
 
-`anomaly_score.v`
 
-Compares current vibration features with the learned baseline and determines whether individual features are abnormal.
+SYSTEM ARCHITECTURE
 
-`alert_persistence.v`
-
-Prevents isolated spikes from immediately generating an alarm by requiring the anomaly condition to persist.
-
----
-
-### Top Level
-
-`vibration_asic_top.v`
-
-Integrates the complete system:
-
-```text
-LIS3DH
-  ↓
+LIS3DH Accelerometer
+    ↓
 SPI Controller
-  ↓
+    ↓
 DC Filtering
-  ↓
+    ↓
 Window Processing
-  ↓
+    ↓
 Peak / ZCR / Energy / Goertzel
-  ↓
+    ↓
 Feature Scaling
-  ↓
+    ↓
 Learning Bank
-  ↓
+    ↓
 Anomaly Score
-  ↓
+    ↓
 Persistence Logic
-  ↓
+    ↓
 Alert
-```
 
----
 
-## Current Status
+CURRENT STATUS
 
 The complete RTL design has been integrated and verified using simulation.
 
 Current full-chip simulation sequence:
 
-```text
-SENSOR INITIALIZED
-LEARNING COMPLETE
-IMBALANCE INTRODUCED
-ALERT TRIGGERED
+FULL CHIP: SENSOR INITIALIZED
+FULL CHIP: LEARNING COMPLETE
+FULL CHIP: IMBALANCE INTRODUCED
+FULL CHIP: ALERT TRIGGERED
 FULL CHIP SIMULATION: PASS
-```
 
-Individual modules also have dedicated Verilog testbenches under the `tb/` directory.
+Individual RTL modules also have dedicated Verilog testbenches.
 
----
 
-## ASIC Implementation
+ASIC DEVELOPMENT
 
-The ASIC flow uses:
+ASIC toolchain:
 
-- Verilog RTL
-- Yosys
-- LibreLane
-- OpenROAD
-- Sky130 PDK
+Verilog RTL
+Yosys
+LibreLane
+OpenROAD
+Sky130 PDK
 
-The design has successfully passed RTL synthesis and technology mapping.
+The design has passed synthesis and technology mapping.
 
-A previously measured optimized top-level mapped logic area was approximately:
+An optimized top-level mapped logic area measured approximately:
 
-```text
 0.775 mm²
-```
 
-This value represents synthesized standard-cell logic and should not be interpreted as final fabricated die area.
+This value represents synthesized standard-cell logic area and is not the final fabricated die size.
 
-Physical design work includes:
+The ASIC physical-design flow includes:
 
-```text
 Synthesis
 Floorplanning
 Placement
 Clock Tree Synthesis
 Timing Optimization
 Routing
-STA
+Static Timing Analysis
 DRC
 LVS
 GDSII
-```
 
 ASIC configuration files are located under:
 
-```text
 openlane/
-```
 
-Generated LibreLane runs are intentionally excluded from the repository because they can become very large.
 
----
+FPGA VALIDATION
 
-## FPGA Validation
+Target FPGA:
 
-The project is also being prepared for hardware validation on:
-
-**Sipeed Tang Nano 20K**
+Sipeed Tang Nano 20K
 
 FPGA family:
 
-```text
 Gowin GW2A / GW2AR
-```
 
-The FPGA flow uses:
+FPGA toolchain:
 
-- Yosys
-- OSS CAD Suite
-- nextpnr-himbaechel
-- Project Apicula / Gowin support
+Yosys
+OSS CAD Suite
+nextpnr-himbaechel
+Project Apicula
 
-Modern Yosys versions successfully infer Gowin multiplier resources from the arithmetic blocks.
+A recent Yosys version successfully mapped arithmetic operations to Gowin multiplier resources.
 
-Example FPGA synthesis results:
+Example synthesis result:
 
-```text
 LUT1        146
 LUT2       1064
 LUT3        645
@@ -273,181 +202,176 @@ LUT4       1914
 MULT18X18     7
 MULT36X36     8
 MULT9X9       1
-```
 
-Place-and-route and physical FPGA validation are the next steps.
+FPGA place-and-route and physical hardware validation are the next development steps.
 
----
 
-## Repository Structure
+REPOSITORY STRUCTURE
 
-```text
 vibration_asic/
-│
-├── rtl/
-│   ├── alert_persistence.v
-│   ├── anomaly_score.v
-│   ├── dc_filter.v
-│   ├── feature_scaler.v
-│   ├── goertzel_bank.v
-│   ├── goertzel_core.v
-│   ├── goertzel_shared.v
-│   ├── learning_bank.v
-│   ├── lis3dh_controller.v
-│   ├── peak_detector.v
-│   ├── rms_energy.v
-│   ├── running_stats.v
-│   ├── sample_tick.v
-│   ├── spi_master.v
-│   ├── vibration_asic_top.v
-│   ├── window_engine.v
-│   └── zcr_detector.v
-│
-├── tb/
-│   └── Verilog testbenches
-│
-├── sim/
-│   └── Simulation outputs
-│
-├── openlane/
-│   └── ASIC / LibreLane configuration
-│
-├── fpga/
-│   └── FPGA implementation files
-│
-└── docs/
-    └── Project documentation
-```
 
----
+rtl/
+    alert_persistence.v
+    anomaly_score.v
+    dc_filter.v
+    feature_scaler.v
+    goertzel_bank.v
+    goertzel_core.v
+    goertzel_shared.v
+    learning_bank.v
+    lis3dh_controller.v
+    peak_detector.v
+    rms_energy.v
+    running_stats.v
+    sample_tick.v
+    spi_master.v
+    vibration_asic_top.v
+    window_engine.v
+    zcr_detector.v
 
-## Running the Full-Chip Simulation
+tb/
+    Verilog testbenches
 
-The design can be simulated using Icarus Verilog.
+sim/
+    Simulation outputs
+
+openlane/
+    ASIC and LibreLane configuration
+
+fpga/
+    FPGA implementation files
+
+docs/
+    Project documentation
+
+
+FULL-CHIP SIMULATION
 
 From the project directory:
 
-```bash
 iverilog -s tb_full_chip \
 -o sim/full_chip.vvp \
 rtl/*.v \
 tb/tb_full_chip.v
-```
 
-Run the simulation:
+Run:
 
-```bash
 vvp sim/full_chip.vvp
-```
 
-A successful test should end with:
+Expected successful result:
 
-```text
 FULL CHIP: SENSOR INITIALIZED
 FULL CHIP: LEARNING COMPLETE
 FULL CHIP: IMBALANCE INTRODUCED
 FULL CHIP: ALERT TRIGGERED
 FULL CHIP SIMULATION: PASS
-```
 
----
 
-## FPGA Synthesis
+FPGA SYNTHESIS
 
-With a recent Yosys version supporting Gowin DSP inference:
+Using a recent Yosys version with Gowin support:
 
-```bash
-yosys -p "read_verilog rtl/*.v; \
-synth_gowin -top vibration_asic_top \
--family gw2a \
--json fpga/vibration_asic.json; \
-stat"
-```
+yosys -p "read_verilog rtl/*.v; synth_gowin -top vibration_asic_top -family gw2a -json fpga/vibration_asic.json; stat"
 
-The resulting JSON netlist can then be used by the Gowin-compatible nextpnr flow.
+The generated JSON netlist can then be used with nextpnr-himbaechel for Gowin FPGA place-and-route.
 
----
 
-## Design Goals
+DESIGN GOALS
 
-The project is intended to explore a compact hardware architecture for vibration condition monitoring with several characteristics:
+Fully local vibration processing
 
-- Fully local processing
-- No cloud dependency
-- No large neural-network inference engine
-- Online learning of normal machine behavior
-- Real-time vibration monitoring
-- Low-latency anomaly detection
-- ASIC-oriented architecture
-- FPGA-verifiable RTL
-- Potential low-power embedded deployment
+No cloud dependency
 
----
+No large neural-network inference engine
 
-## Potential Applications
+Online learning of normal machine behavior
 
-Possible applications include:
+Real-time anomaly detection
 
-- Electric motors
-- Fans
-- Pumps
-- Industrial machinery
-- Rotating equipment
-- Bearings
-- HVAC systems
-- Predictive maintenance nodes
-- Embedded condition-monitoring systems
+Low-latency hardware processing
 
----
+ASIC-oriented architecture
 
-## Development Roadmap
+FPGA-verifiable RTL
 
-Current development direction:
+Potential low-power embedded deployment
 
-```text
-RTL Design                 ✅
-Module Verification        ✅
-Full-Chip Simulation       ✅
-ASIC Synthesis             ✅
-ASIC Optimization          ✅
-Physical Design            In Progress
-FPGA Synthesis             ✅
-FPGA Place & Route         Next
-FPGA Hardware Validation   Next
-Accelerometer Demo         Planned
-ASIC Tapeout               Future
-```
 
-The planned physical demonstration is:
+POTENTIAL APPLICATIONS
 
-```text
+Electric motors
+
+Fans
+
+Pumps
+
+Industrial machinery
+
+Rotating equipment
+
+Bearings
+
+HVAC systems
+
+Predictive maintenance nodes
+
+Embedded condition-monitoring systems
+
+
+DEVELOPMENT STATUS
+
+RTL Design                  COMPLETE
+
+Module Verification         COMPLETE
+
+Full-Chip Simulation        COMPLETE
+
+ASIC Synthesis              COMPLETE
+
+ASIC Optimization           COMPLETE
+
+ASIC Physical Design        IN PROGRESS
+
+FPGA Synthesis              COMPLETE
+
+FPGA Place and Route        NEXT
+
+FPGA Hardware Validation    NEXT
+
+Accelerometer Demo          PLANNED
+
+ASIC Tapeout                FUTURE
+
+
+PLANNED HARDWARE DEMO
+
 Machine running normally
-        ↓
+    ↓
 Learn vibration baseline
-        ↓
+    ↓
 Introduce mechanical imbalance
-        ↓
+    ↓
 Detect abnormal vibration
-        ↓
+    ↓
 Trigger hardware alert
-```
 
----
 
-## Project Purpose
+PROJECT PURPOSE
 
-This repository is primarily an engineering and research project exploring how vibration anomaly detection can be implemented directly in digital hardware rather than relying on a general-purpose processor or cloud-based analytics system.
+This project explores the implementation of vibration anomaly detection directly in digital hardware.
 
-The goal is to progress from:
+The system is intended to perform feature extraction, online learning, anomaly comparison, and alert generation without relying on a general-purpose CPU, cloud service, or large machine-learning model.
 
-```text
+Development path:
+
 Algorithm
-→ RTL
-→ Simulation
-→ FPGA
-→ ASIC
-→ Physical Silicon
-```
-
-and validate the complete hardware architecture experimentally.
-```
+    ↓
+RTL
+    ↓
+Simulation
+    ↓
+FPGA
+    ↓
+ASIC
+    ↓
+Physical Silicon
