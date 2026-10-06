@@ -1,0 +1,8 @@
+DESIGN_NAME: vibration_asic_top
+
+VERILOG_FILES: dir::../rtl/*.v
+
+CLOCK_PORT: clk
+CLOCK_PERIOD: 100
+
+FP_CORE_UTIL: 25
